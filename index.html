@@ -5,111 +5,105 @@
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
         html, body { width: 310px; margin: 0; padding: 0; background: #242424; color: #eee; font-family: sans-serif; overflow: hidden; }
-        .app { display: flex; flex-direction: column; padding: 15px; height: 100vh; box-sizing: border-box; }
-        #status { font-size: 9px; text-align: center; margin-bottom: 5px; color: #777; }
-        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; border: 1px solid #333; }
+        .app { display: flex; flex-direction: column; padding: 10px; height: 100vh; box-sizing: border-box; }
+        
+        /* Панель отладки — если что-то не так, мы это увидим */
+        #debug { font-size: 8px; color: #555; background: #000; padding: 4px; margin-bottom: 5px; border-radius: 4px; max-height: 30px; overflow: hidden; }
+        
+        .controls { display: flex; align-items: center; justify-content: center; gap: 8px; background: #1a1a1a; border-radius: 8px; padding: 10px; border: 1px solid #333; }
         button { cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
-        .btn-c { width: 40px; height: 40px; background: #444; font-size: 20px; }
-        #cnt { width: 60px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 20px; font-weight: bold; }
+        .btn-c { width: 35px; height: 35px; background: #444; font-size: 18px; }
+        #cnt { width: 50px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 18px; font-weight: bold; }
+        
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .roll-btn { padding: 12px 5px; font-size: 11px; text-transform: uppercase; }
+        .roll-btn { padding: 10px; font-size: 11px; text-transform: uppercase; }
         .pub { background: #2e7d32; } .priv { background: #c62828; }
-        #log { margin-top: 15px; background: #111; border-radius: 8px; padding: 10px; border: 1px solid #333; flex-grow: 1; overflow-y: auto; }
-        .entry { border-bottom: 1px solid #222; padding: 10px 0; }
-        .name { font-size: 10px; color: #7986cb; font-weight: bold; text-transform: uppercase; display: block; }
-        .hits { color: #4caf50; font-weight: 900; font-size: 16px; display: block; }
-        .die { background: #333; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 13px; border: 1px solid #444; margin: 2px; }
+        
+        #log { margin-top: 10px; background: #111; border-radius: 8px; padding: 10px; border: 1px solid #333; flex-grow: 1; overflow-y: auto; }
+        .entry { border-bottom: 1px solid #222; padding: 8px 0; }
+        .name { font-size: 10px; color: #7986cb; font-weight: bold; text-transform: uppercase; }
+        .hits { color: #4caf50; font-weight: 900; font-size: 15px; display: block; margin: 2px 0; }
+        .die { background: #333; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px; border: 1px solid #444; margin: 1px; }
     </style>
 </head>
 <body>
     <div class="app">
-        <div id="status">P&P SYNC ENGINE v13</div>
+        <div id="debug">Инициализация...</div>
         <div class="controls">
-            <button class="btn-c" onclick="v(-1)">-</button>
+            <button class="btn-c" onclick="adj(-1)">-</button>
             <input type="number" id="cnt" value="1" min="1">
-            <button class="btn-c" onclick="v(1)">+</button>
+            <button class="btn-c" onclick="adj(1)">+</button>
         </div>
         <div class="actions">
-            <button class="roll-btn pub" onclick="doRoll(false)">Открыто</button>
-            <button class="roll-btn priv" onclick="doRoll(true)">Скрыто</button>
+            <button class="roll-btn pub" onclick="processRoll(false)">Открыто</button>
+            <button class="roll-btn priv" onclick="processRoll(true)">Скрыто</button>
         </div>
         <div id="log"></div>
     </div>
 
     <script>
-        const input = document.getElementById('cnt');
+        const dbg = document.getElementById('debug');
         const log = document.getElementById('log');
-        const KEY = "com.pnp.roller/last_roll"; // Уникальный ключ в памяти комнаты
+        const input = document.getElementById('cnt');
+        const CHANNEL_ID = "pnp_v15_relay";
 
-        function v(delta) { input.value = Math.max(1, (parseInt(input.value) || 1) + delta); }
+        function adj(d) { input.value = Math.max(1, (parseInt(input.value) || 1) + d); }
+        function logDbg(msg) { dbg.innerText = msg; console.log(msg); }
 
-        async function doRoll(isHidden) {
+        async function processRoll(isHidden) {
+            logDbg("Бросаю...");
             const count = parseInt(input.value) || 1;
-            const results = [];
-            let successes = 0;
+            const res = [];
+            let hits = 0;
 
             for(let i=0; i<count; i++) {
-                let val = Math.floor(Math.random() * 6) + 1;
-                results.push(val);
-                if(val === 4 || val === 5) successes++; 
-                else if(val === 6) successes += 2;
+                let v = Math.floor(Math.random() * 6) + 1;
+                res.push(v);
+                if(v === 4 || v === 5) hits++; else if(v === 6) hits += 2;
             }
 
-            let playerName = "Игрок";
-            try { playerName = await OBR.player.getName(); } catch (e) {}
+            let name = "Игрок";
+            try { 
+                if(window.OBR && OBR.isReady) name = await OBR.player.getName(); 
+            } catch(e) {}
 
-            const rollData = {
-                name: playerName,
-                dice: results,
-                hits: successes,
-                priv: isHidden,
-                id: Math.random() // Чтобы каждое изменение было уникальным
-            };
+            const rollData = { name, res, hits, isHidden, uid: Date.now() + Math.random() };
 
-            // Скрытые броски не пишем в память комнаты, только в локальный лог
-            if (isHidden) {
-                render(rollData, true);
-            } else {
-                // ПУБЛИКУЕМ В ПАМЯТЬ КОМНАТЫ
+            // 1. Показываем СЕБЕ сразу
+            renderRoll(rollData, true);
+
+            // 2. Рассылаем остальным (только если открыто)
+            if (!isHidden) {
                 try {
-                    await OBR.room.setMetadata({ [KEY]: rollData });
+                    await OBR.broadcast.sendMessage(CHANNEL_ID, rollData);
+                    logDbg("Отправлено в сеть");
                 } catch (e) {
-                    console.error("Metadata error:", e);
-                    render(rollData, true); // Если не вышло — хоть себе покажем
+                    logDbg("Ошибка сети: " + e.message);
                 }
             }
         }
 
-        function render(data, isMe) {
-            // Проверка на дубликаты (чтобы не рисовать свой же бросок дважды)
-            const rollId = data.id.toString();
-            if (document.getElementById(rollId)) return;
-
+        function renderRoll(data, isMe) {
             const div = document.createElement('div');
-            div.id = rollId;
             div.className = 'entry';
-            const label = isMe ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
-            
-            div.innerHTML = `
-                <span class="name">${label}</span>
-                <span class="hits">${data.hits} Успехов</span>
-                <div>${data.dice.map(x => `<div class="die">${x}</div>`).join('')}</div>
-            `;
+            const label = isMe ? (data.isHidden ? "Вы (Скрыто)" : "Вы") : data.name;
+            div.innerHTML = `<span class="name">${label}</span><span class="hits">${data.hits} Успехов</span><div>${data.res.map(x => `<div class="die">${x}</div>`).join('')}</div>`;
             log.prepend(div);
         }
 
+        // Инициализация
         OBR.onReady(() => {
+            logDbg("SDK Готов. Подключаю слушателя...");
             OBR.viewport.setHeight(700);
 
-            // СЛУШАЕМ ИЗМЕНЕНИЯ ПАМЯТИ КОМНАТЫ
-            OBR.room.onMetadataChange((metadata) => {
-                const lastRoll = metadata[KEY];
-                if (lastRoll) {
-                    // Если бросок не наш — рисуем
-                    render(lastRoll, false);
-                }
+            OBR.broadcast.onMessage(CHANNEL_ID, (event) => {
+                logDbg("Получен чужой бросок!");
+                if (event.data) renderRoll(event.data, false);
             });
         });
+
+        // На случай если OBR.onReady тормозит
+        setTimeout(() => { if(dbg.innerText === "Инициализация...") logDbg("SDK задерживается..."); }, 3000);
     </script>
 </body>
 </html>
