@@ -6,30 +6,24 @@
     <style>
         html, body { width: 310px; margin: 0; padding: 0; background: #242424; color: #eee; font-family: sans-serif; overflow: hidden; }
         .app { display: flex; flex-direction: column; padding: 15px; height: 100vh; box-sizing: border-box; }
-        
-        /* Индикатор сети */
-        #status { font-size: 9px; text-align: center; margin-bottom: 5px; color: #f44336; transition: 0.3s; }
-        .online { color: #4caf50 !important; }
-
+        #status { font-size: 9px; text-align: center; margin-bottom: 5px; color: #777; }
         .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; border: 1px solid #333; }
         button { cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
         .btn-c { width: 40px; height: 40px; background: #444; font-size: 20px; }
         #cnt { width: 60px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 20px; font-weight: bold; }
-        
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
         .roll-btn { padding: 12px 5px; font-size: 11px; text-transform: uppercase; }
         .pub { background: #2e7d32; } .priv { background: #c62828; }
-        
         #log { margin-top: 15px; background: #111; border-radius: 8px; padding: 10px; border: 1px solid #333; flex-grow: 1; overflow-y: auto; }
-        .entry { border-bottom: 1px solid #222; padding: 10px 0; font-size: 13px; }
+        .entry { border-bottom: 1px solid #222; padding: 10px 0; }
         .name { font-size: 10px; color: #7986cb; font-weight: bold; text-transform: uppercase; display: block; }
         .hits { color: #4caf50; font-weight: 900; font-size: 16px; display: block; }
-        .die { background: #333; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; margin: 2px; border: 1px solid #444; }
+        .die { background: #333; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 13px; border: 1px solid #444; margin: 2px; }
     </style>
 </head>
 <body>
     <div class="app">
-        <div id="status">● СЕТЬ НЕ ПОДКЛЮЧЕНА</div>
+        <div id="status">P&P SYNC ENGINE v13</div>
         <div class="controls">
             <button class="btn-c" onclick="v(-1)">-</button>
             <input type="number" id="cnt" value="1" min="1">
@@ -45,8 +39,7 @@
     <script>
         const input = document.getElementById('cnt');
         const log = document.getElementById('log');
-        const statusEl = document.getElementById('status');
-        const CHANNEL = "PNP_STABLE_V12"; // НОВЫЙ КАНАЛ
+        const KEY = "com.pnp.roller/last_roll"; // Уникальный ключ в памяти комнаты
 
         function v(delta) { input.value = Math.max(1, (parseInt(input.value) || 1) + delta); }
 
@@ -63,42 +56,57 @@
             }
 
             let playerName = "Игрок";
-            try {
-                if (OBR.isReady) playerName = await OBR.player.getName();
-            } catch (e) {}
+            try { playerName = await OBR.player.getName(); } catch (e) {}
 
-            const data = { name: playerName, dice: results, hits: successes, priv: isHidden };
-            
-            // Сначала рисуем у себя
-            render(data, true);
+            const rollData = {
+                name: playerName,
+                dice: results,
+                hits: successes,
+                priv: isHidden,
+                id: Math.random() // Чтобы каждое изменение было уникальным
+            };
 
-            // Отправка в сеть
-            if (!isHidden) {
+            // Скрытые броски не пишем в память комнаты, только в локальный лог
+            if (isHidden) {
+                render(rollData, true);
+            } else {
+                // ПУБЛИКУЕМ В ПАМЯТЬ КОМНАТЫ
                 try {
-                    // Используем BROADCAST с принудительной проверкой готовности
-                    await OBR.broadcast.sendMessage(CHANNEL, data);
-                } catch (e) { console.error("Ошибка отправки"); }
+                    await OBR.room.setMetadata({ [KEY]: rollData });
+                } catch (e) {
+                    console.error("Metadata error:", e);
+                    render(rollData, true); // Если не вышло — хоть себе покажем
+                }
             }
         }
 
         function render(data, isMe) {
+            // Проверка на дубликаты (чтобы не рисовать свой же бросок дважды)
+            const rollId = data.id.toString();
+            if (document.getElementById(rollId)) return;
+
             const div = document.createElement('div');
+            div.id = rollId;
             div.className = 'entry';
             const label = isMe ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
-            div.innerHTML = `<span class="name">${label}</span><span class="hits">${data.hits} Успехов</span><div>${data.dice.map(x => `<div class="die">${x}</div>`).join('')}</div>`;
+            
+            div.innerHTML = `
+                <span class="name">${label}</span>
+                <span class="hits">${data.hits} Успехов</span>
+                <div>${data.dice.map(x => `<div class="die">${x}</div>`).join('')}</div>
+            `;
             log.prepend(div);
         }
 
-        // ИНИЦИАЛИЗАЦИЯ
         OBR.onReady(() => {
-            statusEl.innerText = "● СЕТЬ ГОТОВА (ОНЛАЙН)";
-            statusEl.classList.add("online");
             OBR.viewport.setHeight(700);
 
-            // Слушаем входящие
-            OBR.broadcast.onMessage(CHANNEL, (event) => {
-                if (event.data) {
-                    render(event.data, false);
+            // СЛУШАЕМ ИЗМЕНЕНИЯ ПАМЯТИ КОМНАТЫ
+            OBR.room.onMetadataChange((metadata) => {
+                const lastRoll = metadata[KEY];
+                if (lastRoll) {
+                    // Если бросок не наш — рисуем
+                    render(lastRoll, false);
                 }
             });
         });
