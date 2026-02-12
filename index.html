@@ -15,7 +15,7 @@
         .pub { background: #2e7d32; } .priv { background: #c62828; }
         #log { margin-top: 15px; background: #111; border-radius: 8px; padding: 10px; border: 1px solid #333; flex-grow: 1; min-height: 450px; }
         .entry { border-bottom: 1px solid #222; padding: 10px 0; }
-        .name { font-size: 10px; color: #888; text-transform: uppercase; display: block; }
+        .name { font-size: 10px; color: #7986cb; font-weight: bold; text-transform: uppercase; display: block; }
         .hits { color: #4caf50; font-weight: 900; font-size: 16px; display: block; }
         .die { background: #333; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 13px; border: 1px solid #444; margin: 2px; }
     </style>
@@ -37,11 +37,12 @@
     <script>
         const input = document.getElementById('cnt');
         const log = document.getElementById('log');
-        const CHANNEL = "pnp_v11_stable";
+        // Уникальный ключ канала - должен быть одинаковым у всех!
+        const CHANNEL = "PNP_FINAL_STABLE_CHANNEL_V1";
 
         function v(delta) { input.value = Math.max(1, (parseInt(input.value) || 1) + delta); }
 
-        function doRoll(isHidden) {
+        async function doRoll(isHidden) {
             const count = parseInt(input.value) || 1;
             const results = [];
             let successes = 0;
@@ -53,48 +54,58 @@
                 else if(val === 6) successes += 2;
             }
 
-            const data = { name: "Игрок", dice: results, hits: successes, priv: isHidden };
+            let playerName = "Игрок";
+            try {
+                // Пытаемся получить имя из Owlbear перед отправкой
+                if (window.OBR && OBR.isReady) {
+                    playerName = await OBR.player.getName();
+                }
+            } catch (e) {}
+
+            const data = { name: playerName, dice: results, hits: successes, priv: isHidden };
             
-            // 1. Показываем себе немедленно (не зависит от SDK)
+            // 1. Показываем себе (сразу)
             render(data, true);
 
-            // 2. Отправляем в сеть асинхронно
-            sendBroadcast(data);
-        }
-
-        async function sendBroadcast(data) {
-            try {
-                if (window.OBR && OBR.isReady) {
-                    data.name = await OBR.player.getName();
-                }
-                if (!data.priv) {
+            // 2. Рассылаем остальным
+            if (!isHidden) {
+                try {
                     await OBR.broadcast.sendMessage(CHANNEL, data);
+                    console.log("Бросок отправлен в сеть:", data);
+                } catch (e) {
+                    console.error("Ошибка сети:", e);
                 }
-            } catch (e) { console.warn("Broadcast skip"); }
+            }
         }
 
         function render(data, isMe) {
             const div = document.createElement('div');
             div.className = 'entry';
+            // Если бросок чужой, пишем имя игрока. Если свой - "Вы".
             const label = isMe ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
-            div.innerHTML = `<span class="name">${label}</span><span class="hits">${data.hits} Успехов</span><div>${data.dice.map(x => `<div class="die">${x}</div>`).join('')}</div>`;
+            
+            div.innerHTML = `
+                <span class="name">${label}</span>
+                <span class="hits">${data.hits} Успехов</span>
+                <div>${data.dice.map(x => `<div class="die">${x}</div>`).join('')}</div>
+            `;
             log.prepend(div);
             try { OBR.viewport.setHeight(700); } catch(e){}
         }
 
-        // Ждем загрузки SDK
-        async function init() {
-            try {
-                await OBR.onReady(() => {
-                    OBR.viewport.setHeight(700);
-                    OBR.broadcast.onMessage(CHANNEL, (msg) => {
-                        if (msg.data) render(msg.data, false);
-                    });
-                });
-            } catch (e) { console.error("SDK Init Error"); }
-        }
+        OBR.onReady(() => {
+            console.log("Плагин P&P подключен к Owlbear");
+            OBR.viewport.setHeight(700);
 
-        init();
+            // Слушаем ЧУЖИЕ броски
+            OBR.broadcast.onMessage(CHANNEL, (msg) => {
+                console.log("Получено сообщение из канала:", msg);
+                // Показываем только если это не наш собственный бросок (хотя broadcast обычно не шлет самому себе)
+                if (msg.data) {
+                    render(msg.data, false);
+                }
+            });
+        });
     </script>
 </body>
 </html>
