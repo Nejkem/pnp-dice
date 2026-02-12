@@ -5,58 +5,78 @@
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
         body { 
-            font-family: 'Segoe UI', Helvetica, sans-serif; 
-            color: #eee; background: #2b2b2b; 
-            margin: 0; padding: 10px; 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            color: #eee; background: #242424; 
+            margin: 0; padding: 15px; 
             display: flex; flex-direction: column; 
             height: 100vh; overflow: hidden; box-sizing: border-box; 
         }
         
-        /* Управление */
-        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-        button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; }
-        .btn-c { width: 40px; height: 40px; background: #444; font-size: 20px; }
-        #countInput { width: 60px; background: #222; border: 1px solid #444; border-radius: 6px; color: white; text-align: center; font-size: 20px; font-weight: bold; padding: 5px; }
+        /* Панель управления */
+        .header-label { font-size: 10px; text-transform: uppercase; color: #777; letter-spacing: 2px; text-align: center; margin-bottom: 10px; }
+        
+        .controls { display: flex; align-items: center; justify-content: center; gap: 12px; background: #1a1a1a; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #333; }
+        button { cursor: pointer; border: none; border-radius: 8px; color: white; font-weight: bold; transition: all 0.2s; }
+        button:hover { filter: brightness(1.2); }
+        button:active { transform: scale(0.95); }
 
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .roll-btn { padding: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .pub { background: #2e7d32; } 
-        .priv { background: #c62828; }
+        .btn-c { width: 45px; height: 45px; background: #333; font-size: 24px; border: 1px solid #444; }
+        
+        #countInput { 
+            width: 70px; background: #000; border: 2px solid #444; border-radius: 8px; 
+            color: #fff; text-align: center; font-size: 24px; font-weight: bold; padding: 5px;
+        }
 
-        /* БОЛЬШОЙ ЛОГ */
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .roll-btn { padding: 15px; font-size: 13px; text-transform: uppercase; font-weight: 800; border-radius: 10px; }
+        .pub { background: #2e7d32; box-shadow: 0 4px 0 #1b5e20; } 
+        .priv { background: #c62828; box-shadow: 0 4px 0 #8e1c1c; }
+        .roll-btn:active { transform: translateY(3px); box-shadow: none; }
+
+        /* ОГРОМНЫЙ ЛОГ */
         #log { 
-            flex-grow: 1; background: #111; border-radius: 8px; 
-            padding: 12px; overflow-y: auto; margin-top: 10px; 
-            border: 1px solid #444; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            flex-grow: 1; background: #111; border-radius: 12px; 
+            padding: 15px; overflow-y: auto; margin-top: 15px; 
+            border: 1px solid #333; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
         }
         
         .entry { 
-            border-bottom: 1px solid #333; 
-            padding: 12px 0; /* Увеличили вертикальный отступ */
-            margin-bottom: 5px;
-            animation: fadeIn 0.3s ease;
+            border-bottom: 1px solid #222; 
+            padding: 15px 0; 
+            animation: slideIn 0.25s ease-out;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 
-        .name-tag { font-size: 12px; color: #aaa; text-transform: uppercase; margin-bottom: 6px; display: block; }
-        .result-line { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
-        .hit-badge { background: #2e7d32; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 16px; }
+        .name-tag { font-size: 11px; color: #5c6bc0; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; display: block; }
         
-        .dice-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .result-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .hit-badge { 
+            background: linear-gradient(135deg, #4caf50, #2e7d32); 
+            color: white; padding: 5px 12px; border-radius: 6px; 
+            font-weight: 900; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .success-label { font-size: 12px; color: #888; margin-left: 5px; font-weight: normal; }
+        
+        .dice-grid { display: flex; flex-wrap: wrap; gap: 6px; }
         .die { 
-            background: #333; width: 26px; height: 26px; display: flex; 
-            align-items: center; justify-content: center; border-radius: 5px; 
-            font-size: 14px; border: 1px solid #555; font-weight: bold;
+            background: #2a2a2a; color: #fff; width: 30px; height: 30px; 
+            display: flex; align-items: center; justify-content: center; border-radius: 6px; 
+            font-size: 16px; border: 1px solid #444; font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        /* Полоса прокрутки */
-        #log::-webkit-scrollbar { width: 6px; }
-        #log::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+        /* Скроллбар */
+        #log::-webkit-scrollbar { width: 8px; }
+        #log::-webkit-scrollbar-track { background: #111; }
+        #log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        #log::-webkit-scrollbar-thumb:hover { background: #444; }
     </style>
 </head>
 <body>
+    <div class="header-label">Prowlers & Paragons Ultimate</div>
+    
     <div class="controls">
-        <button class="btn-c" onclick="ch(-1)">-</button>
+        <button class="btn-c" onclick="ch(-1)">−</button>
         <input type="number" id="countInput" value="1" min="1" onchange="validate()">
         <button class="btn-c" onclick="ch(1)">+</button>
     </div>
@@ -70,6 +90,7 @@
 
     <script>
         const input = document.getElementById('countInput');
+        const VIEWPORT_HEIGHT = 900; // Твоя новая высота
 
         function ch(v) {
             let val = parseInt(input.value) || 1;
@@ -91,12 +112,14 @@
             }
 
             let playerName = "Игрок"; 
-            try { playerName = await OBR.player.getName(); } catch(e){}
+            try { 
+                playerName = await OBR.player.getName(); 
+            } catch(e) { console.log("SDK Offline"); }
             
             const data = { name: playerName, dice: diceResults, hits: successes, priv: isHidden };
             
             if(!isHidden) {
-                try { OBR.broadcast.sendMessage("pnp_pro_v1", data); } catch(e){}
+                try { OBR.broadcast.sendMessage("pnp_final_v5", data); } catch(e){}
             }
             
             render(data, true);
@@ -107,26 +130,26 @@
             const div = document.createElement('div');
             div.className = 'entry';
             
-            // Определяем имя для показа
             const displayName = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
             
             div.innerHTML = `
                 <span class="name-tag">${displayName}</span>
-                <div class="result-line">
-                    <span class="hit-badge">${data.hits} Усп.</span>
+                <div class="result-row">
+                    <div class="hit-badge">${data.hits} <span class="success-label">успехов</span></div>
                 </div>
-                <div class="dice-container">
+                <div class="dice-grid">
                     ${data.dice.map(v => `<div class="die">${v}</div>`).join('')}
                 </div>
             `;
             
             log.prepend(div);
-            try { OBR.viewport.setHeight(500); } catch(e){}
+            // Принудительно держим высоту
+            try { OBR.viewport.setHeight(VIEWPORT_HEIGHT); } catch(e){}
         }
 
         OBR.onReady(() => {
-            OBR.viewport.setHeight(500);
-            OBR.broadcast.onMessage("pnp_pro_v1", e => render(e.data, false));
+            OBR.viewport.setHeight(VIEWPORT_HEIGHT);
+            OBR.broadcast.onMessage("pnp_final_v5", e => render(e.data, false));
         });
     </script>
 </body>
