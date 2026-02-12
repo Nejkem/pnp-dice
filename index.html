@@ -4,96 +4,144 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
-        /* Убираем ограничения высоты с body */
         html, body { 
-            width: 300px; 
+            width: 320px; 
             margin: 0; padding: 0;
             background: #242424; 
             color: #eee;
-            font-family: 'Segoe UI', sans-serif;
-            overflow-x: hidden;
-            overflow-y: auto;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
         }
         .app-container {
             display: flex; flex-direction: column;
-            padding: 12px;
-            min-height: 600px; /* ЭТО ЗАСТАВИТ ОКНО РАСТЯНУТЬСЯ */
+            padding: 15px;
+            min-height: 650px; /* Удерживаем размер окна */
+            box-sizing: border-box;
         }
-        .controls { display: flex; align-items: center; justify-content: center; gap: 8px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid #333; }
-        button { cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
-        .btn-c { width: 36px; height: 36px; background: #444; font-size: 20px; }
-        #countInput { width: 55px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 20px; font-weight: bold; padding: 4px; }
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-        .roll-btn { padding: 10px; font-size: 11px; text-transform: uppercase; }
-        .pub { background: #2e7d32; } .priv { background: #c62828; }
+        .controls { 
+            display: flex; align-items: center; justify-content: center; gap: 10px; 
+            background: #1a1a1a; border-radius: 8px; padding: 12px; 
+            margin-bottom: 10px; border: 1px solid #333; 
+        }
+        button { cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; transition: 0.2s; }
+        button:hover { filter: brightness(1.2); }
         
+        .btn-c { width: 40px; height: 40px; background: #444; font-size: 22px; }
+        #countInput { 
+            width: 60px; background: #000; border: 1px solid #555; 
+            color: #fff; text-align: center; font-size: 22px; font-weight: bold; 
+            border-radius: 4px;
+        }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .roll-btn { padding: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .pub { background: #2e7d32; border-bottom: 3px solid #1b5e20; } 
+        .priv { background: #c62828; border-bottom: 3px solid #8e1c1c; }
+        .roll-btn:active { border-bottom: none; transform: translateY(2px); }
+
         #log { 
-            margin-top: 12px; 
+            margin-top: 15px; 
             background: #111; 
             border-radius: 8px; 
-            padding: 10px; 
+            padding: 12px; 
             border: 1px solid #333;
             flex-grow: 1;
+            min-height: 400px;
         }
-        .entry { border-bottom: 1px solid #222; padding: 8px 0; font-size: 13px; }
-        .name { font-size: 10px; color: #888; text-transform: uppercase; }
-        .hits { color: #4caf50; font-weight: bold; margin: 4px 0; display: block; }
-        .die { background: #333; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; margin: 1px; font-size: 12px; border: 1px solid #444; }
-        
-        /* Распорка для "выталкивания" окна вниз */
-        .bottom-spacer { height: 50px; width: 100%; }
+        .entry { border-bottom: 1px solid #222; padding: 10px 0; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .name { font-size: 11px; color: #7986cb; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
+        .hits { color: #4caf50; font-weight: 900; font-size: 16px; margin-bottom: 6px; display: block; }
+        .dice-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
+        .die { 
+            background: #2a2a2a; width: 26px; height: 26px; 
+            display: flex; align-items: center; justify-content: center; 
+            border-radius: 4px; font-size: 14px; border: 1px solid #444; font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="controls">
-            <button class="btn-c" onclick="ch(-1)">-</button>
+            <button class="btn-c" onclick="change(-1)">-</button>
             <input type="number" id="countInput" value="1" min="1">
-            <button class="btn-c" onclick="ch(1)">+</button>
+            <button class="btn-c" onclick="change(1)">+</button>
         </div>
         <div class="actions">
-            <button class="roll-btn pub" onclick="rk(false)">Открыто</button>
-            <button class="roll-btn priv" onclick="rk(true)">Скрыто</button>
+            <button class="roll-btn pub" onclick="roll(false)">Открыто</button>
+            <button class="roll-btn priv" onclick="roll(true)">Скрыто</button>
         </div>
         <div id="log"></div>
-        <div class="bottom-spacer"></div>
     </div>
 
     <script>
         const input = document.getElementById('countInput');
-        function ch(v) { input.value = Math.max(1, (parseInt(input.value) || 1) + v); }
+        const log = document.getElementById('log');
 
-        async function rk(h) {
-            let c = parseInt(input.value) || 1, rs = [], s = 0;
-            for(let i=0; i<c; i++){
-                let v = Math.floor(Math.random()*6)+1;
-                rs.push(v);
-                if(v==4||v==5) s++; else if(v==6) s+=2;
-            }
-            let n = "Вы"; 
-            try { n = await OBR.player.getName(); } catch(e){}
-            if(!h) OBR.broadcast.sendMessage("pnp_final", {n, rs, s});
-            show({n, rs, s, h}, true);
+        function change(v) { 
+            input.value = Math.max(1, (parseInt(input.value) || 1) + v); 
         }
 
-        function show(d, isM) {
-            const l = document.getElementById('log');
+        async function roll(isHidden) {
+            const count = parseInt(input.value) || 1;
+            let results = [], successes = 0;
+
+            for(let i=0; i<count; i++){
+                let v = Math.floor(Math.random()*6)+1;
+                results.push(v);
+                if(v === 4 || v === 5) successes++; 
+                else if(v === 6) successes += 2;
+            }
+
+            let pName = "Игрок";
+            try {
+                // Пытаемся получить имя, если SDK готов
+                if (OBR.isReady) {
+                    pName = await OBR.player.getName();
+                }
+            } catch(e) { console.warn("Имя не получено"); }
+
+            const rollData = { name: pName, dice: results, hits: successes, priv: isHidden };
+
+            // 1. Показываем СЕБЕ в любом случае
+            show(rollData, true);
+
+            // 2. Отправляем ОСТАЛЬНЫМ, если бросок открытый
+            if (!isHidden) {
+                try {
+                    OBR.broadcast.sendMessage("pnp_final_channel", rollData);
+                    console.log("Сообщение отправлено");
+                } catch(e) { console.error("Ошибка отправки:", e); }
+            }
+        }
+
+        function show(data, isMine) {
             const div = document.createElement('div');
             div.className = 'entry';
-            const name = isM ? (d.h ? "Вы (Скрыто)" : "Вы") : d.n;
-            div.innerHTML = `<span class="name">${name}</span><span class="hits">${d.s} Успехов</span>` + 
-                            d.rs.map(v => `<div class="die">${v}</div>`).join('');
-            l.prepend(div);
-            // Пытаемся расширить вьюпорт при каждом броске
-            try { OBR.viewport.setHeight(650); } catch(e){}
+            const label = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
+            
+            div.innerHTML = `
+                <span class="name">${label}</span>
+                <span class="hits">${data.hits} Успехов</span>
+                <div class="dice-wrap">
+                    ${data.dice.map(v => `<div class="die">${v}</div>`).join('')}
+                </div>
+            `;
+            log.prepend(div);
+            
+            // Магическое расширение окна
+            try { OBR.viewport.setHeight(680); } catch(e){}
         }
 
         OBR.onReady(() => {
-            // Принудительно ставим высоту при старте
-            setTimeout(() => {
-                try { OBR.viewport.setHeight(650); } catch(e){}
-            }, 500);
-            OBR.broadcast.onMessage("pnp_final", e => show(e.data, false));
+            console.log("P&P Плагин готов");
+            try { OBR.viewport.setHeight(680); } catch(e){}
+            
+            // Слушаем сообщения от других игроков
+            OBR.broadcast.onMessage("pnp_final_channel", (event) => {
+                console.log("Получен бросок от игрока:", event.data);
+                show(event.data, false);
+            });
         });
     </script>
 </body>
