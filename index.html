@@ -4,118 +4,75 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
-        /* Растягиваем на всю высоту боковой панели */
         html, body { 
-            height: 100%; 
+            width: 350px; 
+            height: 600px; 
             margin: 0; padding: 0;
-            background: #1e1e1e; 
+            background: #242424; 
             color: #eee;
-            font-family: 'Segoe UI', sans-serif;
+            font-family: sans-serif;
             overflow: hidden;
         }
-
-        .dock-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            padding: 10px;
-            box-sizing: border-box;
+        .wrapper {
+            display: flex; flex-direction: column;
+            height: 100vh; padding: 15px; box-sizing: border-box;
         }
-
-        .header { font-size: 10px; text-transform: uppercase; color: #666; text-align: center; margin-bottom: 10px; letter-spacing: 1px; }
-        
-        /* Управление компактно сверху */
-        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #2a2a2a; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid #333; }
-        button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; transition: 0.2s; }
-        .btn-c { width: 36px; height: 36px; background: #444; font-size: 20px; }
-        .btn-c:hover { background: #555; }
-        
-        #countInput { width: 50px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 20px; font-weight: bold; padding: 4px; border-radius: 4px; }
-
+        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; }
+        .btn-c { width: 40px; height: 40px; background: #333; font-size: 20px; border: 1px solid #444; }
+        #countInput { width: 60px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 22px; font-weight: bold; }
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .roll-btn { padding: 12px 5px; font-size: 10px; text-transform: uppercase; border-radius: 4px; }
-        .pub { background: #2e7d32; } 
-        .priv { background: #c62828; }
-        .roll-btn:hover { opacity: 0.8; }
-
-        /* Лог занимает ВСЁ свободное место до низа экрана */
-        #log { 
-            flex-grow: 1; 
-            background: #121212; 
-            border-radius: 8px; 
-            padding: 12px; 
-            margin-top: 10px; 
-            overflow-y: auto; 
-            border: 1px solid #333;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
-        
-        .entry { border-bottom: 1px solid #222; padding: 12px 0; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .name-tag { font-size: 11px; color: #7986cb; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; display: block; }
-        .hit-badge { background: #2e7d32; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 8px; font-size: 14px; }
-        .dice-grid { display: flex; flex-wrap: wrap; gap: 5px; }
-        .die { background: #333; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 13px; border: 1px solid #444; font-weight: bold; }
-
-        /* Красивый скроллбар */
-        #log::-webkit-scrollbar { width: 4px; }
-        #log::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        .roll-btn { padding: 12px; font-size: 11px; text-transform: uppercase; }
+        .pub { background: #2e7d32; } .priv { background: #c62828; }
+        #log { flex-grow: 1; background: #111; border-radius: 8px; padding: 10px; margin-top: 10px; overflow-y: auto; border: 1px solid #333; }
+        .entry { border-bottom: 1px solid #333; padding: 10px 0; }
+        .hit-badge { background: #2e7d32; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 5px; }
+        .die { background: #333; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; margin: 2px; font-size: 14px; border: 1px solid #555; }
     </style>
 </head>
 <body>
-    <div class="dock-container">
-        <div class="header">P&P Dice Panel</div>
-        
+    <div class="wrapper">
         <div class="controls">
             <button class="btn-c" onclick="ch(-1)">−</button>
             <input type="number" id="countInput" value="1" min="1">
             <button class="btn-c" onclick="ch(1)">+</button>
         </div>
-
         <div class="actions">
             <button class="roll-btn pub" onclick="rk(false)">Открыто</button>
-            <button class="roll-btn priv" onclick="rk(true)">Скрыто (ГМ)</button>
+            <button class="roll-btn priv" onclick="rk(true)">Скрыто</button>
         </div>
-
         <div id="log"></div>
     </div>
-
     <script>
         const input = document.getElementById('countInput');
-
         function ch(v) { input.value = Math.max(1, (parseInt(input.value) || 1) + v); }
+        function sz() { try { OBR.viewport.setHeight(600); } catch(e){} }
 
-        async function rk(isHidden) {
-            let count = parseInt(input.value) || 1;
-            let results = [], successes = 0;
-            for(let i=0; i<count; i++){
+        async function rk(h) {
+            let c = parseInt(input.value) || 1, rs = [], s = 0;
+            for(let i=0; i<c; i++){
                 let v = Math.floor(Math.random()*6)+1;
-                results.push(v);
-                if(v==4||v==5) successes++; else if(v==6) successes+=2;
+                rs.push(v);
+                if(v==4||v==5) s++; else if(v==6) s+=2;
             }
-            let pName = "Игрок"; 
-            try { pName = await OBR.player.getName(); } catch(e){}
-            const data = { name: pName, dice: results, hits: successes, priv: isHidden };
-            if(!isHidden) OBR.broadcast.sendMessage("pnp_dock_v1", data);
-            render(data, true);
+            let n = "Игрок"; try { n = await OBR.player.getName(); } catch(e){}
+            if(!h) OBR.broadcast.sendMessage("pnp_final", {n, rs, s});
+            render({n, rs, s, h}, true);
         }
 
-        function render(data, isMine) {
-            const log = document.getElementById('log');
+        function render(d, m) {
+            const l = document.getElementById('log');
             const div = document.createElement('div');
             div.className = 'entry';
-            const name = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
-            div.innerHTML = `
-                <span class="name-tag">${name}</span>
-                <div class="hit-badge">${data.hits} Успехов</div>
-                <div class="dice-grid">${data.dice.map(v => `<div class="die">${v}</div>`).join('')}</div>
-            `;
-            log.prepend(div);
+            div.innerHTML = `<strong>${m?(d.h?"Вы (Скр)":"Вы"):d.n}</strong><br><div class="hit-badge">${d.s} Усп.</div><br>${d.rs.map(v => `<div class="die">${v}</div>`).join('')}`;
+            l.prepend(div);
+            sz();
         }
 
         OBR.onReady(() => {
-            OBR.broadcast.onMessage("pnp_dock_v1", e => render(e.data, false));
+            sz();
+            setInterval(sz, 1000); // Принудительно раз в секунду
+            OBR.broadcast.onMessage("pnp_final", e => render(e.data, false));
         });
     </script>
 </body>
