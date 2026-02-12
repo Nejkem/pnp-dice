@@ -4,124 +4,95 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
-        body { 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            color: #eee; background: #242424; 
-            margin: 0; padding: 15px; 
-            display: flex; flex-direction: column; 
-            height: 100vh; overflow: hidden; box-sizing: border-box; 
-        }
-        
-        /* Панель управления */
-        .header-label { font-size: 10px; text-transform: uppercase; color: #777; letter-spacing: 2px; text-align: center; margin-bottom: 10px; }
-        
-        .controls { display: flex; align-items: center; justify-content: center; gap: 12px; background: #1a1a1a; border-radius: 12px; padding: 15px; margin-bottom: 12px; border: 1px solid #333; }
-        button { cursor: pointer; border: none; border-radius: 8px; color: white; font-weight: bold; transition: all 0.2s; }
-        button:hover { filter: brightness(1.2); }
-        button:active { transform: scale(0.95); }
-
-        .btn-c { width: 45px; height: 45px; background: #333; font-size: 24px; border: 1px solid #444; }
-        
-        #countInput { 
-            width: 70px; background: #000; border: 2px solid #444; border-radius: 8px; 
-            color: #fff; text-align: center; font-size: 24px; font-weight: bold; padding: 5px;
+        /* Фиксируем размер всего документа */
+        html, body { 
+            width: 300px; 
+            height: 800px; 
+            margin: 0; padding: 0;
+            background: #242424; 
+            color: #eee;
+            font-family: sans-serif;
+            overflow: hidden;
         }
 
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .roll-btn { padding: 15px; font-size: 13px; text-transform: uppercase; font-weight: 800; border-radius: 10px; }
-        .pub { background: #2e7d32; box-shadow: 0 4px 0 #1b5e20; } 
-        .priv { background: #c62828; box-shadow: 0 4px 0 #8e1c1c; }
-        .roll-btn:active { transform: translateY(3px); box-shadow: none; }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+        }
 
-        /* ОГРОМНЫЙ ЛОГ */
+        .header-label { font-size: 10px; text-transform: uppercase; color: #777; text-align: center; margin-bottom: 10px; }
+        
+        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; }
+        
+        .btn-c { width: 40px; height: 40px; background: #333; font-size: 20px; }
+        #countInput { width: 60px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 22px; font-weight: bold; }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .roll-btn { padding: 12px; font-size: 11px; text-transform: uppercase; font-weight: bold; }
+        .pub { background: #2e7d32; } .priv { background: #c62828; }
+
         #log { 
-            flex-grow: 1; background: #111; border-radius: 12px; 
-            padding: 15px; overflow-y: auto; margin-top: 15px; 
-            border: 1px solid #333; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            flex-grow: 1; 
+            background: #111; 
+            border-radius: 8px; 
+            padding: 10px; 
+            margin-top: 15px; 
+            overflow-y: auto; 
+            border: 1px solid #333;
         }
         
-        .entry { 
-            border-bottom: 1px solid #222; 
-            padding: 15px 0; 
-            animation: slideIn 0.25s ease-out;
-        }
-        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        .entry { border-bottom: 1px solid #222; padding: 10px 0; }
+        .name-tag { font-size: 11px; color: #5c6bc0; font-weight: bold; text-transform: uppercase; }
+        .hit-badge { background: #2e7d32; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; display: inline-block; margin: 5px 0; }
+        .dice-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+        .die { background: #2a2a2a; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 14px; border: 1px solid #444; }
 
-        .name-tag { font-size: 11px; color: #5c6bc0; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; display: block; }
-        
-        .result-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-        .hit-badge { 
-            background: linear-gradient(135deg, #4caf50, #2e7d32); 
-            color: white; padding: 5px 12px; border-radius: 6px; 
-            font-weight: 900; font-size: 18px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        .success-label { font-size: 12px; color: #888; margin-left: 5px; font-weight: normal; }
-        
-        .dice-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-        .die { 
-            background: #2a2a2a; color: #fff; width: 30px; height: 30px; 
-            display: flex; align-items: center; justify-content: center; border-radius: 6px; 
-            font-size: 16px; border: 1px solid #444; font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        /* Скроллбар */
-        #log::-webkit-scrollbar { width: 8px; }
-        #log::-webkit-scrollbar-track { background: #111; }
-        #log::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-        #log::-webkit-scrollbar-thumb:hover { background: #444; }
+        /* Красивый скроллбар */
+        #log::-webkit-scrollbar { width: 5px; }
+        #log::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <div class="header-label">Prowlers & Paragons Ultimate</div>
-    
-    <div class="controls">
-        <button class="btn-c" onclick="ch(-1)">−</button>
-        <input type="number" id="countInput" value="1" min="1" onchange="validate()">
-        <button class="btn-c" onclick="ch(1)">+</button>
-    </div>
+    <div class="wrapper">
+        <div class="header-label">P&P Roller Ultimate</div>
+        
+        <div class="controls">
+            <button class="btn-c" onclick="ch(-1)">−</button>
+            <input type="number" id="countInput" value="1" min="1">
+            <button class="btn-c" onclick="ch(1)">+</button>
+        </div>
 
-    <div class="actions">
-        <button class="roll-btn pub" onclick="rk(false)">Открыто</button>
-        <button class="roll-btn priv" onclick="rk(true)">Скрыто</button>
-    </div>
+        <div class="actions">
+            <button class="roll-btn pub" onclick="rk(false)">Открыто</button>
+            <button class="roll-btn priv" onclick="rk(true)">Скрыто</button>
+        </div>
 
-    <div id="log"></div>
+        <div id="log"></div>
+    </div>
 
     <script>
         const input = document.getElementById('countInput');
-        const VIEWPORT_HEIGHT = 900; // Твоя новая высота
 
         function ch(v) {
-            let val = parseInt(input.value) || 1;
-            input.value = Math.max(1, val + v);
-        }
-
-        function validate() {
-            if (parseInt(input.value) < 1 || !input.value) input.value = 1;
+            input.value = Math.max(1, (parseInt(input.value) || 1) + v);
         }
 
         async function rk(isHidden) {
             let count = parseInt(input.value) || 1;
-            let diceResults = [], successes = 0;
-            
+            let results = [], successes = 0;
             for(let i=0; i<count; i++){
                 let v = Math.floor(Math.random()*6)+1;
-                diceResults.push(v);
+                results.push(v);
                 if(v==4||v==5) successes++; else if(v==6) successes+=2;
             }
-
-            let playerName = "Игрок"; 
-            try { 
-                playerName = await OBR.player.getName(); 
-            } catch(e) { console.log("SDK Offline"); }
-            
-            const data = { name: playerName, dice: diceResults, hits: successes, priv: isHidden };
-            
-            if(!isHidden) {
-                try { OBR.broadcast.sendMessage("pnp_final_v5", data); } catch(e){}
-            }
-            
+            let pName = "Вы"; 
+            try { pName = await OBR.player.getName(); } catch(e){}
+            const data = { name: pName, dice: results, hits: successes, priv: isHidden };
+            if(!isHidden) OBR.broadcast.sendMessage("pnp_final_v6", data);
             render(data, true);
         }
 
@@ -129,27 +100,20 @@
             const log = document.getElementById('log');
             const div = document.createElement('div');
             div.className = 'entry';
-            
-            const displayName = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
-            
+            const name = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
             div.innerHTML = `
-                <span class="name-tag">${displayName}</span>
-                <div class="result-row">
-                    <div class="hit-badge">${data.hits} <span class="success-label">успехов</span></div>
-                </div>
-                <div class="dice-grid">
-                    ${data.dice.map(v => `<div class="die">${v}</div>`).join('')}
-                </div>
+                <div class="name-tag">${name}</div>
+                <div class="hit-badge">${data.hits} Успехов</div>
+                <div class="dice-grid">${data.dice.map(v => `<div class="die">${v}</div>`).join('')}</div>
             `;
-            
             log.prepend(div);
-            // Принудительно держим высоту
-            try { OBR.viewport.setHeight(VIEWPORT_HEIGHT); } catch(e){}
+            // Принудительное удержание высоты
+            try { OBR.viewport.setHeight(800); } catch(e){}
         }
 
         OBR.onReady(() => {
-            OBR.viewport.setHeight(VIEWPORT_HEIGHT);
-            OBR.broadcast.onMessage("pnp_final_v5", e => render(e.data, false));
+            OBR.viewport.setHeight(800);
+            OBR.broadcast.onMessage("pnp_final_v6", e => render(e.data, false));
         });
     </script>
 </body>
