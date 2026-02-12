@@ -4,41 +4,54 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
-        body { font-family: sans-serif; color: #eee; background: #2b2b2b; margin: 0; padding: 8px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; box-sizing: border-box; }
-        .controls { display: flex; align-items: center; justify-content: center; gap: 8px; background: #1a1a1a; border-radius: 6px; padding: 5px; margin-bottom: 8px; }
-        
-        button { cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; transition: opacity 0.2s; }
-        button:hover { opacity: 0.8; }
-        
-        /* Кнопки +/- */
-        .btn-c { width: 32px; height: 32px; background: #444; font-size: 18px; }
-        
-        /* Поле ввода числа */
-        #countInput { 
-            width: 50px; background: transparent; border: 1px solid #444; border-radius: 4px;
-            color: white; text-align: center; font-size: 18px; font-weight: bold; padding: 3px;
+        body { 
+            font-family: 'Segoe UI', Helvetica, sans-serif; 
+            color: #eee; background: #2b2b2b; 
+            margin: 0; padding: 10px; 
+            display: flex; flex-direction: column; 
+            height: 100vh; overflow: hidden; box-sizing: border-box; 
         }
-        #countInput:focus { border-color: #3f51b5; outline: none; background: #222; }
+        
+        /* Управление */
+        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; }
+        .btn-c { width: 40px; height: 40px; background: #444; font-size: 20px; }
+        #countInput { width: 60px; background: #222; border: 1px solid #444; border-radius: 6px; color: white; text-align: center; font-size: 20px; font-weight: bold; padding: 5px; }
 
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-        .roll-btn { padding: 10px; font-size: 11px; text-transform: uppercase; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .roll-btn { padding: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
         .pub { background: #2e7d32; } 
         .priv { background: #c62828; }
 
+        /* БОЛЬШОЙ ЛОГ */
         #log { 
-            flex-grow: 1; background: #111; border-radius: 6px; padding: 8px; 
-            overflow-y: auto; font-size: 13px; margin-top: 8px; border: 1px solid #444;
-            margin-bottom: 10px; /* Чтобы не перекрывалось хостингом */
+            flex-grow: 1; background: #111; border-radius: 8px; 
+            padding: 12px; overflow-y: auto; margin-top: 10px; 
+            border: 1px solid #444; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
         
-        .die { 
-            background: #333; width: 22px; height: 22px; display: inline-flex; 
-            align-items: center; justify-content: center; border-radius: 4px; 
-            margin: 2px; font-size: 12px; border: 1px solid #555;
+        .entry { 
+            border-bottom: 1px solid #333; 
+            padding: 12px 0; /* Увеличили вертикальный отступ */
+            margin-bottom: 5px;
+            animation: fadeIn 0.3s ease;
         }
-        .hit { color: #4caf50; font-weight: bold; font-size: 14px; }
-        .entry { border-bottom: 1px solid #333; padding: 8px 0; }
-        .name { font-size: 11px; color: #aaa; margin-bottom: 4px; display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .name-tag { font-size: 12px; color: #aaa; text-transform: uppercase; margin-bottom: 6px; display: block; }
+        .result-line { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+        .hit-badge { background: #2e7d32; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 16px; }
+        
+        .dice-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+        .die { 
+            background: #333; width: 26px; height: 26px; display: flex; 
+            align-items: center; justify-content: center; border-radius: 5px; 
+            font-size: 14px; border: 1px solid #555; font-weight: bold;
+        }
+
+        /* Полоса прокрутки */
+        #log::-webkit-scrollbar { width: 6px; }
+        #log::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -67,38 +80,53 @@
             if (parseInt(input.value) < 1 || !input.value) input.value = 1;
         }
 
-        async function rk(h) {
-            let c = parseInt(input.value) || 1;
-            let rs = [], s = 0;
-            for(let i=0; i<c; i++){
-                let v = Math.floor(Math.random()*6)+1;
-                rs.push(v);
-                if(v==4||v==5) s++; else if(v==6) s+=2;
-            }
-            let n = "Вы"; 
-            try { n = await OBR.player.getName(); } catch(e){}
+        async function rk(isHidden) {
+            let count = parseInt(input.value) || 1;
+            let diceResults = [], successes = 0;
             
-            const data = {n, rs, s, h};
-            if(!h) try { OBR.broadcast.sendMessage("pnp_final", data); } catch(e){}
-            show(data, true);
+            for(let i=0; i<count; i++){
+                let v = Math.floor(Math.random()*6)+1;
+                diceResults.push(v);
+                if(v==4||v==5) successes++; else if(v==6) successes+=2;
+            }
+
+            let playerName = "Игрок"; 
+            try { playerName = await OBR.player.getName(); } catch(e){}
+            
+            const data = { name: playerName, dice: diceResults, hits: successes, priv: isHidden };
+            
+            if(!isHidden) {
+                try { OBR.broadcast.sendMessage("pnp_pro_v1", data); } catch(e){}
+            }
+            
+            render(data, true);
         }
 
-        function show(d, m) {
-            const l = document.getElementById('log');
+        function render(data, isMine) {
+            const log = document.getElementById('log');
             const div = document.createElement('div');
             div.className = 'entry';
-            const label = m ? (d.h ? "Вы (Скрыто)" : "Вы") : d.n;
             
-            div.innerHTML = `<span class="name">${label}</span>
-                            <span class="hit">${d.s} усп.</span><br>` + 
-                            d.rs.map(v => `<div class="die">${v}</div>`).join('');
-            l.prepend(div);
-            try { OBR.viewport.setHeight(350); } catch(e){}
+            // Определяем имя для показа
+            const displayName = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
+            
+            div.innerHTML = `
+                <span class="name-tag">${displayName}</span>
+                <div class="result-line">
+                    <span class="hit-badge">${data.hits} Усп.</span>
+                </div>
+                <div class="dice-container">
+                    ${data.dice.map(v => `<div class="die">${v}</div>`).join('')}
+                </div>
+            `;
+            
+            log.prepend(div);
+            try { OBR.viewport.setHeight(500); } catch(e){}
         }
 
         OBR.onReady(() => {
-            OBR.viewport.setHeight(350);
-            OBR.broadcast.onMessage("pnp_final", e => show(e.data, false));
+            OBR.viewport.setHeight(500);
+            OBR.broadcast.onMessage("pnp_pro_v1", e => render(e.data, false));
         });
     </script>
 </body>
