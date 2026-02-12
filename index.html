@@ -4,36 +4,50 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
+        /* Убираем ограничения высоты с body */
         html, body { 
-            width: 350px; 
-            height: 600px; 
+            width: 300px; 
             margin: 0; padding: 0;
             background: #242424; 
             color: #eee;
-            font-family: sans-serif;
-            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
-        .wrapper {
+        .app-container {
             display: flex; flex-direction: column;
-            height: 100vh; padding: 15px; box-sizing: border-box;
+            padding: 12px;
+            min-height: 600px; /* ЭТО ЗАСТАВИТ ОКНО РАСТЯНУТЬСЯ */
         }
-        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-        button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; }
-        .btn-c { width: 40px; height: 40px; background: #333; font-size: 20px; border: 1px solid #444; }
-        #countInput { width: 60px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 22px; font-weight: bold; }
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .roll-btn { padding: 12px; font-size: 11px; text-transform: uppercase; }
+        .controls { display: flex; align-items: center; justify-content: center; gap: 8px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid #333; }
+        button { cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        .btn-c { width: 36px; height: 36px; background: #444; font-size: 20px; }
+        #countInput { width: 55px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 20px; font-weight: bold; padding: 4px; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .roll-btn { padding: 10px; font-size: 11px; text-transform: uppercase; }
         .pub { background: #2e7d32; } .priv { background: #c62828; }
-        #log { flex-grow: 1; background: #111; border-radius: 8px; padding: 10px; margin-top: 10px; overflow-y: auto; border: 1px solid #333; }
-        .entry { border-bottom: 1px solid #333; padding: 10px 0; }
-        .hit-badge { background: #2e7d32; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; display: inline-block; margin-bottom: 5px; }
-        .die { background: #333; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; margin: 2px; font-size: 14px; border: 1px solid #555; }
+        
+        #log { 
+            margin-top: 12px; 
+            background: #111; 
+            border-radius: 8px; 
+            padding: 10px; 
+            border: 1px solid #333;
+            flex-grow: 1;
+        }
+        .entry { border-bottom: 1px solid #222; padding: 8px 0; font-size: 13px; }
+        .name { font-size: 10px; color: #888; text-transform: uppercase; }
+        .hits { color: #4caf50; font-weight: bold; margin: 4px 0; display: block; }
+        .die { background: #333; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 3px; margin: 1px; font-size: 12px; border: 1px solid #444; }
+        
+        /* Распорка для "выталкивания" окна вниз */
+        .bottom-spacer { height: 50px; width: 100%; }
     </style>
 </head>
 <body>
-    <div class="wrapper">
+    <div class="app-container">
         <div class="controls">
-            <button class="btn-c" onclick="ch(-1)">−</button>
+            <button class="btn-c" onclick="ch(-1)">-</button>
             <input type="number" id="countInput" value="1" min="1">
             <button class="btn-c" onclick="ch(1)">+</button>
         </div>
@@ -42,11 +56,12 @@
             <button class="roll-btn priv" onclick="rk(true)">Скрыто</button>
         </div>
         <div id="log"></div>
+        <div class="bottom-spacer"></div>
     </div>
+
     <script>
         const input = document.getElementById('countInput');
         function ch(v) { input.value = Math.max(1, (parseInt(input.value) || 1) + v); }
-        function sz() { try { OBR.viewport.setHeight(600); } catch(e){} }
 
         async function rk(h) {
             let c = parseInt(input.value) || 1, rs = [], s = 0;
@@ -55,24 +70,30 @@
                 rs.push(v);
                 if(v==4||v==5) s++; else if(v==6) s+=2;
             }
-            let n = "Игрок"; try { n = await OBR.player.getName(); } catch(e){}
+            let n = "Вы"; 
+            try { n = await OBR.player.getName(); } catch(e){}
             if(!h) OBR.broadcast.sendMessage("pnp_final", {n, rs, s});
-            render({n, rs, s, h}, true);
+            show({n, rs, s, h}, true);
         }
 
-        function render(d, m) {
+        function show(d, isM) {
             const l = document.getElementById('log');
             const div = document.createElement('div');
             div.className = 'entry';
-            div.innerHTML = `<strong>${m?(d.h?"Вы (Скр)":"Вы"):d.n}</strong><br><div class="hit-badge">${d.s} Усп.</div><br>${d.rs.map(v => `<div class="die">${v}</div>`).join('')}`;
+            const name = isM ? (d.h ? "Вы (Скрыто)" : "Вы") : d.n;
+            div.innerHTML = `<span class="name">${name}</span><span class="hits">${d.s} Успехов</span>` + 
+                            d.rs.map(v => `<div class="die">${v}</div>`).join('');
             l.prepend(div);
-            sz();
+            // Пытаемся расширить вьюпорт при каждом броске
+            try { OBR.viewport.setHeight(650); } catch(e){}
         }
 
         OBR.onReady(() => {
-            sz();
-            setInterval(sz, 1000); // Принудительно раз в секунду
-            OBR.broadcast.onMessage("pnp_final", e => render(e.data, false));
+            // Принудительно ставим высоту при старте
+            setTimeout(() => {
+                try { OBR.viewport.setHeight(650); } catch(e){}
+            }, 500);
+            OBR.broadcast.onMessage("pnp_final", e => show(e.data, false));
         });
     </script>
 </body>
