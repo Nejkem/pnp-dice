@@ -4,60 +4,25 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
-        html, body { 
-            width: 320px; 
-            margin: 0; padding: 0;
-            background: #242424; 
-            color: #eee;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-        }
-        .app-container {
-            display: flex; flex-direction: column;
-            padding: 15px;
-            min-height: 650px; /* Удерживаем размер окна */
-            box-sizing: border-box;
-        }
-        .controls { 
-            display: flex; align-items: center; justify-content: center; gap: 10px; 
-            background: #1a1a1a; border-radius: 8px; padding: 12px; 
-            margin-bottom: 10px; border: 1px solid #333; 
-        }
-        button { cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; transition: 0.2s; }
-        button:hover { filter: brightness(1.2); }
+        html, body { width: 320px; margin: 0; padding: 0; background: #242424; color: #eee; font-family: sans-serif; }
+        .app-container { display: flex; flex-direction: column; padding: 15px; min-height: 700px; box-sizing: border-box; }
+        
+        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 12px; margin-bottom: 10px; border: 1px solid #333; }
+        button { cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
         
         .btn-c { width: 40px; height: 40px; background: #444; font-size: 22px; }
-        #countInput { 
-            width: 60px; background: #000; border: 1px solid #555; 
-            color: #fff; text-align: center; font-size: 22px; font-weight: bold; 
-            border-radius: 4px;
-        }
+        #countInput { width: 60px; background: #000; border: 1px solid #555; color: #fff; text-align: center; font-size: 22px; font-weight: bold; border-radius: 4px; }
 
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .roll-btn { padding: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .roll-btn { padding: 12px; font-size: 12px; text-transform: uppercase; }
         .pub { background: #2e7d32; border-bottom: 3px solid #1b5e20; } 
         .priv { background: #c62828; border-bottom: 3px solid #8e1c1c; }
-        .roll-btn:active { border-bottom: none; transform: translateY(2px); }
 
-        #log { 
-            margin-top: 15px; 
-            background: #111; 
-            border-radius: 8px; 
-            padding: 12px; 
-            border: 1px solid #333;
-            flex-grow: 1;
-            min-height: 400px;
-        }
-        .entry { border-bottom: 1px solid #222; padding: 10px 0; animation: fadeIn 0.2s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
+        #log { margin-top: 15px; background: #111; border-radius: 8px; padding: 12px; border: 1px solid #333; flex-grow: 1; min-height: 450px; }
+        .entry { border-bottom: 1px solid #222; padding: 10px 0; }
         .name { font-size: 11px; color: #7986cb; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        .hits { color: #4caf50; font-weight: 900; font-size: 16px; margin-bottom: 6px; display: block; }
-        .dice-wrap { display: flex; flex-wrap: wrap; gap: 4px; }
-        .die { 
-            background: #2a2a2a; width: 26px; height: 26px; 
-            display: flex; align-items: center; justify-content: center; 
-            border-radius: 4px; font-size: 14px; border: 1px solid #444; font-weight: bold;
-        }
+        .hits { color: #4caf50; font-weight: 900; font-size: 18px; display: block; margin-bottom: 6px; }
+        .die { background: #2a2a2a; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 14px; border: 1px solid #444; margin: 2px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -68,8 +33,8 @@
             <button class="btn-c" onclick="change(1)">+</button>
         </div>
         <div class="actions">
-            <button class="roll-btn pub" onclick="roll(false)">Открыто</button>
-            <button class="roll-btn priv" onclick="roll(true)">Скрыто</button>
+            <button class="roll-btn pub" onclick="executeRoll(false)">Открыто</button>
+            <button class="roll-btn priv" onclick="executeRoll(true)">Скрыто</button>
         </div>
         <div id="log"></div>
     </div>
@@ -82,40 +47,40 @@
             input.value = Math.max(1, (parseInt(input.value) || 1) + v); 
         }
 
-        async function roll(isHidden) {
+        // Самая главная функция - теперь без лишних проверок
+        async function executeRoll(isHidden) {
             const count = parseInt(input.value) || 1;
-            let results = [], successes = 0;
+            let results = [];
+            let successes = 0;
 
-            for(let i=0; i<count; i++){
-                let v = Math.floor(Math.random()*6)+1;
+            // Считаем кубы
+            for(let i=0; i<count; i++) {
+                let v = Math.floor(Math.random() * 6) + 1;
                 results.push(v);
                 if(v === 4 || v === 5) successes++; 
                 else if(v === 6) successes += 2;
             }
 
+            // Пытаемся взять имя игрока
             let pName = "Игрок";
             try {
-                // Пытаемся получить имя, если SDK готов
-                if (OBR.isReady) {
-                    pName = await OBR.player.getName();
-                }
-            } catch(e) { console.warn("Имя не получено"); }
+                pName = await OBR.player.getName();
+            } catch(e) { console.log("SDK name error"); }
 
-            const rollData = { name: pName, dice: results, hits: successes, priv: isHidden };
+            const data = { name: pName, dice: results, hits: successes, priv: isHidden };
 
-            // 1. Показываем СЕБЕ в любом случае
-            show(rollData, true);
+            // 1. Отрисовка у себя (всегда работает)
+            showInLog(data, true);
 
-            // 2. Отправляем ОСТАЛЬНЫМ, если бросок открытый
+            // 2. Рассылка остальным (только если открыто)
             if (!isHidden) {
                 try {
-                    OBR.broadcast.sendMessage("pnp_final_channel", rollData);
-                    console.log("Сообщение отправлено");
-                } catch(e) { console.error("Ошибка отправки:", e); }
+                    OBR.broadcast.sendMessage("pnp_channel_v7", data);
+                } catch(e) { console.log("Broadcast error"); }
             }
         }
 
-        function show(data, isMine) {
+        function showInLog(data, isMine) {
             const div = document.createElement('div');
             div.className = 'entry';
             const label = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
@@ -123,24 +88,18 @@
             div.innerHTML = `
                 <span class="name">${label}</span>
                 <span class="hits">${data.hits} Успехов</span>
-                <div class="dice-wrap">
-                    ${data.dice.map(v => `<div class="die">${v}</div>`).join('')}
-                </div>
+                <div>${data.dice.map(v => `<div class="die">${v}</div>`).join('')}</div>
             `;
             log.prepend(div);
             
-            // Магическое расширение окна
-            try { OBR.viewport.setHeight(680); } catch(e){}
+            // Растягиваем окно
+            try { OBR.viewport.setHeight(700); } catch(e){}
         }
 
         OBR.onReady(() => {
-            console.log("P&P Плагин готов");
-            try { OBR.viewport.setHeight(680); } catch(e){}
-            
-            // Слушаем сообщения от других игроков
-            OBR.broadcast.onMessage("pnp_final_channel", (event) => {
-                console.log("Получен бросок от игрока:", event.data);
-                show(event.data, false);
+            try { OBR.viewport.setHeight(700); } catch(e){}
+            OBR.broadcast.onMessage("pnp_channel_v7", (event) => {
+                showInLog(event.data, false);
             });
         });
     </script>
