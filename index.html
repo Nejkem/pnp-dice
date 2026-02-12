@@ -4,81 +4,58 @@
     <meta charset="UTF-8">
     <script src="https://unpkg.com/@owlbear-rodeo/sdk"></script>
     <style>
-        /* Фиксируем размер всего документа */
         html, body { 
-            width: 300px; 
-            height: 800px; 
+            width: 100%; 
+            height: 100%; 
             margin: 0; padding: 0;
             background: #242424; 
             color: #eee;
             font-family: sans-serif;
             overflow: hidden;
         }
-
         .wrapper {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            padding: 15px;
-            box-sizing: border-box;
+            display: flex; flex-direction: column;
+            height: 100vh; padding: 12px; box-sizing: border-box;
         }
-
-        .header-label { font-size: 10px; text-transform: uppercase; color: #777; text-align: center; margin-bottom: 10px; }
-        
-        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        .header { font-size: 10px; text-transform: uppercase; color: #666; text-align: center; margin-bottom: 8px; }
+        .controls { display: flex; align-items: center; justify-content: center; gap: 10px; background: #1a1a1a; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
         button { cursor: pointer; border: none; border-radius: 6px; color: white; font-weight: bold; }
-        
-        .btn-c { width: 40px; height: 40px; background: #333; font-size: 20px; }
+        .btn-c { width: 40px; height: 40px; background: #333; font-size: 20px; border: 1px solid #444; }
         #countInput { width: 60px; background: #000; border: 1px solid #444; color: #fff; text-align: center; font-size: 22px; font-weight: bold; }
-
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .roll-btn { padding: 12px; font-size: 11px; text-transform: uppercase; font-weight: bold; }
+        .roll-btn { padding: 12px; font-size: 11px; text-transform: uppercase; }
         .pub { background: #2e7d32; } .priv { background: #c62828; }
-
-        #log { 
-            flex-grow: 1; 
-            background: #111; 
-            border-radius: 8px; 
-            padding: 10px; 
-            margin-top: 15px; 
-            overflow-y: auto; 
-            border: 1px solid #333;
-        }
-        
+        #log { flex-grow: 1; background: #111; border-radius: 8px; padding: 10px; margin-top: 10px; overflow-y: auto; border: 1px solid #333; }
         .entry { border-bottom: 1px solid #222; padding: 10px 0; }
         .name-tag { font-size: 11px; color: #5c6bc0; font-weight: bold; text-transform: uppercase; }
         .hit-badge { background: #2e7d32; color: white; padding: 3px 10px; border-radius: 4px; font-weight: bold; display: inline-block; margin: 5px 0; }
         .dice-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-        .die { background: #2a2a2a; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 14px; border: 1px solid #444; }
-
-        /* Красивый скроллбар */
-        #log::-webkit-scrollbar { width: 5px; }
-        #log::-webkit-scrollbar-thumb { background: #444; border-radius: 5px; }
+        .die { background: #2a2a2a; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 14px; border: 1px solid #444; }
     </style>
 </head>
 <body>
     <div class="wrapper">
-        <div class="header-label">P&P Roller Ultimate</div>
-        
+        <div class="header">P&P Roller v1.7</div>
         <div class="controls">
             <button class="btn-c" onclick="ch(-1)">−</button>
             <input type="number" id="countInput" value="1" min="1">
             <button class="btn-c" onclick="ch(1)">+</button>
         </div>
-
         <div class="actions">
             <button class="roll-btn pub" onclick="rk(false)">Открыто</button>
             <button class="roll-btn priv" onclick="rk(true)">Скрыто</button>
         </div>
-
         <div id="log"></div>
     </div>
 
     <script>
         const input = document.getElementById('countInput');
+        const h = 800; // Целевая высота
 
-        function ch(v) {
-            input.value = Math.max(1, (parseInt(input.value) || 1) + v);
+        function ch(v) { input.value = Math.max(1, (parseInt(input.value) || 1) + v); }
+
+        function setSize() {
+            try { OBR.viewport.setHeight(h); } catch(e){}
         }
 
         async function rk(isHidden) {
@@ -89,10 +66,10 @@
                 results.push(v);
                 if(v==4||v==5) successes++; else if(v==6) successes+=2;
             }
-            let pName = "Вы"; 
+            let pName = "Игрок"; 
             try { pName = await OBR.player.getName(); } catch(e){}
             const data = { name: pName, dice: results, hits: successes, priv: isHidden };
-            if(!isHidden) OBR.broadcast.sendMessage("pnp_final_v6", data);
+            if(!isHidden) OBR.broadcast.sendMessage("pnp_v17", data);
             render(data, true);
         }
 
@@ -101,19 +78,18 @@
             const div = document.createElement('div');
             div.className = 'entry';
             const name = isMine ? (data.priv ? "Вы (Скрыто)" : "Вы") : data.name;
-            div.innerHTML = `
-                <div class="name-tag">${name}</div>
-                <div class="hit-badge">${data.hits} Успехов</div>
-                <div class="dice-grid">${data.dice.map(v => `<div class="die">${v}</div>`).join('')}</div>
-            `;
+            div.innerHTML = `<div class="name-tag">${name}</div><div class="hit-badge">${data.hits} Успехов</div><div class="dice-grid">${data.dice.map(v => `<div class="die">${v}</div>`).join('')}</div>`;
             log.prepend(div);
-            // Принудительное удержание высоты
-            try { OBR.viewport.setHeight(800); } catch(e){}
+            setSize();
         }
 
         OBR.onReady(() => {
-            OBR.viewport.setHeight(800);
-            OBR.broadcast.onMessage("pnp_final_v6", e => render(e.data, false));
+            setSize();
+            // Повторяем попытку несколько раз, чтобы Owlbear точно сдался
+            setTimeout(setSize, 100);
+            setTimeout(setSize, 500);
+            setTimeout(setSize, 1000);
+            OBR.broadcast.onMessage("pnp_v17", e => render(e.data, false));
         });
     </script>
 </body>
